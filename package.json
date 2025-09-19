@@ -12,11 +12,19 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "fix-static-check.helloWorld",
-        "title": "Hello World"
-      }
+    "menus": {
+        "editor/context": [
+            {
+                "command": "fix-static-check.fixFunction",
+                "when": "editorLangId == c || editorLangId == cpp"
+            }
+        ]
+    },
+    "commands":[
+        {
+            "command": "fix-static-check.fixFunction",
+            "title": "Fix Function"
+        }
     ]
   },
   "scripts": {
@@ -28,14 +36,18 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.104.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
+    "@types/vscode": "^1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
-    "eslint": "^9.34.0",
-    "typescript": "^5.9.2",
     "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-c": "^0.21.4"
   }
 }
