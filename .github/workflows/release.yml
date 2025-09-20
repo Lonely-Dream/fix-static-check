@@ -37,6 +37,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: "*.vsix"
-          overwrite: true  # 允许覆盖已有同名Release
+          overwrite_files: true  # 允许覆盖已有同名Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
