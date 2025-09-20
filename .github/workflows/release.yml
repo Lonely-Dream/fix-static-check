@@ -1,15 +1,15 @@
 name: Release VS Code Extension
 
 on:
-  release:
-    types: [published]
-
-permissions:
-  contents: write
+  push:
+    tags:
+      - "v*"
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -19,6 +19,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
@@ -29,9 +30,13 @@ jobs:
       - name: Package extension
         run: vsce package
 
+      - name: List packaged files
+        run: ls -la *.vsix
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: "*.vsix"
+          overwrite: true  # 允许覆盖已有同名Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
