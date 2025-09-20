@@ -4,7 +4,17 @@ import * as vscode from 'vscode';
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
 
-const COMMENT_RATE = 0.25;
+function getConfig() {
+    const config = vscode.workspace.getConfiguration('fix-static-check');
+    const minCommentRatio = config.get<number>('minCommentRatio', 0.25);
+    var autoInsertCommentValue = config.get<string>('autoInsertCommentValue', "fix METRICS-19");
+    if (autoInsertCommentValue.length > 60) {
+        autoInsertCommentValue = autoInsertCommentValue.substring(0, 60);
+    }
+    console.log({ minCommentRatio, autoInsertCommentValue });
+
+    return { minCommentRatio, autoInsertCommentValue };
+}
 
 function findfn(rootNode: Parser.SyntaxNode, line: number): Parser.SyntaxNode | null {
     let result: Parser.SyntaxNode|null = null;
@@ -28,7 +38,7 @@ function findfn(rootNode: Parser.SyntaxNode, line: number): Parser.SyntaxNode | 
     return result;
 }
 
-function analyzeFunction(fnNode: Parser.SyntaxNode, lines: string[]) {
+function analyzeFunction(fnNode: Parser.SyntaxNode, lines: string[], minCommentRatio:number) {
     const commentLines = new Set<number>();
     const allCodeLines = new Set<number>(); // 临时存储所有可能的代码行
     const processedLines = new Set<number>(); // 跟踪已处理的行号
@@ -93,7 +103,7 @@ function analyzeFunction(fnNode: Parser.SyntaxNode, lines: string[]) {
 
     const total = codeLines.size + commentLines.size;
     const ratio = total > 0 ? commentLines.size / total : 0;
-    var needComment = (COMMENT_RATE * total - commentLines.size) / (1 - COMMENT_RATE);
+    var needComment = (minCommentRatio * total - commentLines.size) / (1 - minCommentRatio);
     if (needComment < 0) {
         needComment = 0;
     }
@@ -148,6 +158,8 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
+        const { minCommentRatio, autoInsertCommentValue } = getConfig();
+
         const document = editor.document;
         const text = document.getText();
         const parser = new Parser();
@@ -164,7 +176,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // 分析行数
-        const analysis = analyzeFunction(fnNode, text.split(/\r?\n/));
+        const analysis = analyzeFunction(fnNode, text.split(/\r?\n/), minCommentRatio);
         vscode.window.showInformationMessage(
             `代码行: ${analysis.codeLines} ` +
             `注释行: ${analysis.commentLines} ` +
@@ -181,7 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const vscodePos = new vscode.Position(pos.row, pos.column);
                 let comments = '\n';
                 for (let i = 0; i < analysis.needComment; i++) {
-                    comments += `// fix METRICS-19\n`;
+                    comments += `// ${autoInsertCommentValue }\n`;
                 }
 
                 editBuilder.insert(vscodePos, comments);

@@ -29,7 +29,22 @@
             "command": "fix-static-check.fixFunction",
             "title": "Fix Function"
         }
-    ]
+    ],
+    "configuration": {
+        "title": "fix-static-check",
+        "properties": {
+            "fix-static-check.minCommentRatio": {
+                "type": "number",
+                "default": 0.25,
+                "description": "最低注释比例，如果低于这个值，将自动插入注释"
+            },
+            "fix-static-check.autoInsertCommentValue": {
+                "type": "string",
+                "default": "fix METRICS-19",
+                "description": "自动插入注释的内容, 不要超过60字符"
+            }
+        }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
