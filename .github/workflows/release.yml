@@ -1,11 +1,11 @@
 name: Release VS Code Extension
 
 on:
-  push:
-    tags:
-      - "v*"     # 当推送以 v 开头的 tag 时触发
   release:
-    types: [published]   # 当 Release 发布时触发（不是草稿）
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   release:
