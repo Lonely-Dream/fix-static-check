@@ -3,8 +3,6 @@
 import * as vscode from 'vscode';
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
-import { get } from 'http';
-
 
 const COMMENT_RATE = 0.25;
 
@@ -32,36 +30,66 @@ function findfn(rootNode: Parser.SyntaxNode, line: number): Parser.SyntaxNode | 
 
 function analyzeFunction(fnNode: Parser.SyntaxNode, lines: string[]) {
     const commentLines = new Set<number>();
-    const codeLines = new Set<number>();
+    const allCodeLines = new Set<number>(); // 临时存储所有可能的代码行
+    const processedLines = new Set<number>(); // 跟踪已处理的行号
 
-    function walkNode(node: Parser.SyntaxNode | null) {
+    // 第一步：先收集所有注释行
+    function collectComments(node: Parser.SyntaxNode | null) {
         if (!node) {
             return;
         }
-        const start = node.startPosition.row;
-        const end = node.endPosition.row;
-
-        // console.log(node.type, node.text);
 
         if (node.type === "comment") {
+            const start = node.startPosition.row;
+            const end = node.endPosition.row;
             for (let i = start; i <= end; i++) {
                 commentLines.add(i);
+                processedLines.add(i); // 标记为已处理
             }
-        } else if (node.isNamed) {
+        }
+
+        // 递归处理子节点
+        for (let i = 0; i < node.namedChildCount; i++) {
+            collectComments(node.namedChild(i));
+        }
+    }
+
+    // 第二步：收集所有可能的代码行（排除已处理的注释行）
+    function collectCodeLines(node: Parser.SyntaxNode | null) {
+        if (!node) {
+            return;
+        }
+
+        if (node.isNamed) {
+            const start = node.startPosition.row;
+            const end = node.endPosition.row;
+
             for (let i = start; i <= end; i++) {
-                // 排除空行
-                if (lines[i].trim() !== "" && !commentLines.has(i)) {
-                    codeLines.add(i);
+                // 只处理未被处理过的行
+                if (!processedLines.has(i)) {
+                    allCodeLines.add(i);
+                    processedLines.add(i); // 标记为已处理
                 }
             }
         }
 
+        // 递归处理子节点
         for (let i = 0; i < node.namedChildCount; i++) {
-            walkNode(node.namedChild(i));
+            collectCodeLines(node.namedChild(i));
         }
     }
 
-    walkNode(fnNode);
+    // 执行收集流程
+    collectComments(fnNode);
+    collectCodeLines(fnNode);
+
+    // 过滤有效代码行（排除空行）
+    const codeLines = new Set<number>();
+    for (const line of allCodeLines) {
+        if (lines[line].trim() !== "") {
+            codeLines.add(line);
+        }
+    }
 
     const total = codeLines.size + commentLines.size;
     const ratio = total > 0 ? commentLines.size / total : 0;
@@ -138,10 +166,10 @@ export function activate(context: vscode.ExtensionContext) {
         // 分析行数
         const analysis = analyzeFunction(fnNode, text.split(/\r?\n/));
         vscode.window.showInformationMessage(
-            `代码行: ${analysis.codeLines}` +
-            `注释行: ${analysis.commentLines}` +
-            `注释比例: ${(analysis.ratio * 100).toFixed(1)}%` +
-            `需要注释行: ${analysis.needComment}`
+            `代码行: ${analysis.codeLines} ` +
+            `注释行: ${analysis.commentLines} ` +
+            `注释比例: ${(analysis.ratio * 100).toFixed(1)}% ` +
+            `需要增加注释行: ${analysis.needComment} `
         );
 
         if (analysis.needComment > 0) {
@@ -151,9 +179,12 @@ export function activate(context: vscode.ExtensionContext) {
                     return;
                 }
                 const vscodePos = new vscode.Position(pos.row, pos.column);
+                let comments = '\n';
                 for (let i = 0; i < analysis.needComment; i++) {
-                    editBuilder.insert(vscodePos, `\n// fix METRICS-19 ${i}`);
+                    comments += `// fix METRICS-19\n`;
                 }
+
+                editBuilder.insert(vscodePos, comments);
             });
         }
     });
